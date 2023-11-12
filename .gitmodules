@@ -1,0 +1,3 @@
+[submodule "src/metaformer"]
+	path = src/metaformer
+	url = https://github.com/sail-sg/metaformer.git
