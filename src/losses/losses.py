@@ -124,3 +124,39 @@ class DiceLoss(nn.Module):
 
         return 1 - dice
     
+class GeneralizedDiceLoss(torch.nn.Module):
+    def __init__(self):
+        super(GeneralizedDiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+        inputs = torch.softmax(inputs, dim=1)
+        weight = 1.0 / ((targets.sum(dim=(2, 3)))**2 + smooth)
+        intersection = (inputs * targets).sum(dim=(2, 3))
+        dice = (2. * intersection + smooth) / (inputs.sum(dim=(2, 3)) + targets.sum(dim=(2, 3)) + smooth)
+        dice = weight * dice
+        return 1 - dice.mean()
+    
+
+class CombinedLoss(torch.nn.Module):
+    def __init__(self):
+        super(CombinedLoss, self).__init__()
+        self.dice_loss = GeneralizedDiceLoss()
+        self.ce_loss = torch.nn.CrossEntropyLoss()
+
+    def forward(self, inputs, targets):
+        dice = self.dice_loss(inputs, targets)
+        ce = self.ce_loss(inputs, targets)
+        return dice + ce
+    
+class FocalLoss(torch.nn.Module):
+    def __init__(self, gamma=2, alpha=0.25):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, inputs, targets):
+        inputs = torch.softmax(inputs, dim=1)
+        ce = torch.nn.functional.cross_entropy(inputs, targets)
+        pt = torch.exp(-ce)
+        focal_loss = self.alpha * (1-pt)**self.gamma * ce
+        return focal_loss.mean()
